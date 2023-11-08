@@ -83,14 +83,6 @@ ElbowPlot(cart_obj, ndims = 100, reduction = "pca")
 
 cart_obj <- RunUMAP(cart_obj, dims = 1:15, n.neighbors = 5, n.epochs = 500)
 
-
-levels(factor(arasco_obj@meta.data$orig.ident))
-arasco_obj[["Type"]] <- Idents(arasco_obj)
-new.cluster.ids <- c("Arasco", "Arasco", "Control", "Control")
-names(new.cluster.ids) <- levels(arasco_obj)
-arasco_obj <- RenameIdents(arasco_obj, new.cluster.ids)
-
-
 Idents(cart_obj) <- factor(cart_obj$orig.ident)
 
 levels(factor(cart_obj@meta.data$orig.ident))
@@ -278,12 +270,19 @@ library(readr)
 HALLMARK_INFLAMMATORY_RESPONSE_v7_5_1 <- read_delim("/Users/vyom/documents/HALLMARK_INFLAMMATORY_RESPONSE.v7.5.1.gmt", 
                                                     delim = "\t", escape_double = FALSE, 
                                                     col_names = FALSE, trim_ws = TRUE)
+GOBP_ACUTE_INFLAMMATORY_RESPONSE.v2023.2.Hs <- read_delim("/Users/vyom/documents/GOBP_ACUTE_INFLAMMATORY_RESPONSE.v2023.2.Hs.gmt", 
+                                                    delim = "\t", escape_double = FALSE, 
+                                                    col_names = FALSE, trim_ws = TRUE)
 library('nichenetr')
 H_inflammatory <- as.character(HALLMARK_INFLAMMATORY_RESPONSE_v7_5_1[1,])
 M_inflammatory = H_inflammatory %>% convert_human_to_mouse_symbols()
 M_inflammatory <- unique(M_inflammatory)
 Inflammatory_Response <- intersect(All_Genes, M_inflammatory)
 
+H_inflammatory <- as.character(HALLMARK_INFLAMMATORY_RESPONSE_v7_5_1[1,])
+M_inflammatory = H_inflammatory %>% convert_human_to_mouse_symbols()
+M_inflammatory <- unique(M_inflammatory)
+Inflammatory_Response <- intersect(All_Genes, M_inflammatory)
 
 mean.exp <- zscore(colMeans(x = cart_obj@assays$MAGIC_RNA@data[Inflammatory_Response, ], na.rm = TRUE), dist = 'norm')
 if (all(names(x = mean.exp) == rownames(x = cart_obj@meta.data))) {
@@ -336,7 +335,7 @@ for(i in gene.list) {
   All <- All + geom_boxplot(width=0.3,outlier.shape = NA, coef = 0, lwd=.2, position = dodge) +
     stat_compare_means(data= vln_data, aes(x = Cell_Type, y = value, fill = Treatment), hide.ns = TRUE, method = "t.test",  label = "p.signif", size = 1)  
   All$layers[[1]]$aes_params$size = .15
-  ggsave(file = paste0('Cart_stem_', i, '.pdf'), plot=All, width=2, height=2, units="in")
+  ggsave(file = paste0('Cart_stem_', i, '.pdf'), plot=All, width=2, height=2, units="in")xf
 }
 
 levels(cart_obj$Cell_Type)
@@ -990,8 +989,198 @@ Idents(cart_obj)
   ggsave(file="Control_CART_score_dotplot.pdf",  width=4, height=5, units="in")
 }
 
+write.csv(cart_obj@meta.data, 'Treated_CAR_T_metadata.csv')
+sen_mayo <- c(
+  "Acvr1b", "Ang", "Angpt1", "Angptl4", "Areg", "Axl", "Bex3", "Bmp2", "Bmp6",
+  "C3", "Ccl1", "Ccl2", "Ccl20", "Ccl24", "Ccl26", "Ccl3", "Ccl4", "Ccl5", "Ccl7",
+  "Ccl8", "Cd55", "Cd9", "Csf1", "Csf2", "Csf2rb", "Cst10", "Ctnnb1", "Ctsb",
+  "Cxcl1", "Cxcl10", "Cxcl12", "Cxcl16", "Cxcl2", "Cxcl3", "Cxcr2", "Dkk1", "Edn1",
+  "Egf", "Egfr", "Ereg", "Esm1", "Ets2", "Fas", "Fgf1", "Fgf2", "Fgf7", "Gdf15",
+  "Gem", "Gmfg", "Hgf", "Hmgb1", "Icam1", "Icam5", "Igf1", "Igfbp1", "Igfbp2",
+  "Igfbp3", "Igfbp4", "Igfbp5", "Igfbp6", "Igfbp7", "Il10", "Il13", "Il15", "Il18",
+  "Il1a", "Il1b", "Il2", "Il6", "Il6st", "Il7", "Inha", "Iqgap2", "Itga2", "Itpka",
+  "Jun", "Kitl", "Lcp1", "Mif", "Mmp13", "Mmp10", "Mmp12", "Mmp13", "Mmp14", "Mmp2",
+  "Mmp3", "Mmp9", "Nap1l4", "Nrg1", "Pappa", "Pecam1", "Pgf", "Pigf", "Plat", "Plau",
+  "Plaur", "Ptbp1", "Ptger2", "Ptges", "Rps6ka5", "Scamp4", "Selplg", "Sema3f",
+  "Serpinb3a", "Serpine1", "Serpine2", "Spp1", "Spx", "Timp2", "Tnf", "Tnfrsf11b",
+  "Tnfrsf1a", "Tnfrsf1b", "Tubgcp2", "Vegfa", "Vegfc", "Vgf", "Wnt16", "Wnt2"
+)
+Inflammatory_score_new <- c('Ccl4','Ccl5','Ccl9','Ccl20','Cd74','Cox4I1','Cox8A','Ctsb','Ctsd','H2-Ac','H2-Ab1','H2-Q7','Ifi47','Ifit1Bl1','Ifit2','Ifit3','Ifitm3','Irf7','Isg15','Stat2','Stat3','Tap1','Ucp2')
+HALLMARK_INFLAMMATORY_RESPONSE_v7_5_1 <- read_delim("/Users/vyom/documents/HALLMARK_INFLAMMATORY_RESPONSE.v7.5.1.gmt", 
+                                                    delim = "\t", escape_double = FALSE, 
+                                                    col_names = FALSE, trim_ws = TRUE)
+GOBP_ACUTE_INFLAMMATORY_RESPONSE.v2023.2.Hs <- read_delim("/Users/vyom/documents/GOBP_ACUTE_INFLAMMATORY_RESPONSE.v2023.2.Hs.gmt", 
+                                                          delim = "\t", escape_double = FALSE, 
+                                                          col_names = FALSE, trim_ws = TRUE)
+library('nichenetr')
+H_inflammatory <- as.character(HALLMARK_INFLAMMATORY_RESPONSE_v7_5_1[1,])
+M_inflammatory = H_inflammatory %>% convert_human_to_mouse_symbols()
+M_inflammatory <- unique(M_inflammatory)
+
+H_inflammatory <- as.character(GOBP_ACUTE_INFLAMMATORY_RESPONSE.v2023.2.Hs[1,])
+acute_inflam = H_inflammatory %>% convert_human_to_mouse_symbols()
+acute_inflam <- unique(acute_inflam)
+
+All_Genes <- cart_old@assays$RNA@data@Dimnames[[1]]
+sen_mayo <- intersect(All_Genes, sen_mayo)
+Inflammatory_score_new <- intersect(All_Genes, Inflammatory_score_new)
+Inflamm_response <- intersect(All_Genes, M_inflammatory)
+acute_inflam <- intersect(All_Genes, acute_inflam)
+
+mean.exp <- zscore(colMeans(x = cart_old@assays$MAGIC_RNA@data[sen_mayo, ], na.rm = TRUE), dist = 'norm')
+if (all(names(x = mean.exp) == rownames(x = cart_old@meta.data))) {
+  cat("Cell names order match in 'mean.exp' and 'object@meta.data':\n", 
+      "adding gene set mean expression values in 'object@meta.data$gene.set.score'")
+  cart_old@meta.data$sen_mayo <- mean.exp
+}
+mean.exp <- zscore(colMeans(x = Cart_UT@assays$MAGIC_RNA@data[sen_mayo, ], na.rm = TRUE), dist = 'norm')
+if (all(names(x = mean.exp) == rownames(x = Cart_UT@meta.data))) {
+  cat("Cell names order match in 'mean.exp' and 'object@meta.data':\n", 
+      "adding gene set mean expression values in 'object@meta.data$gene.set.score'")
+  Cart_UT@meta.data$sen_mayo <- mean.exp
+}
+mean.exp <- zscore(colMeans(x = Cart_UT@assays$MAGIC_RNA@data[Inflammatory_score_new, ], na.rm = TRUE), dist = 'norm')
+if (all(names(x = mean.exp) == rownames(x = Cart_UT@meta.data))) {
+  cat("Cell names order match in 'mean.exp' and 'object@meta.data':\n", 
+      "adding gene set mean expression values in 'object@meta.data$gene.set.score'")
+  Cart_UT@meta.data$Inflammatory_score_new <- mean.exp
+}
+mean.exp <- zscore(colMeans(x = Cart_UT@assays$MAGIC_RNA@data[Inflamm_response, ], na.rm = TRUE), dist = 'norm')
+if (all(names(x = mean.exp) == rownames(x = Cart_UT@meta.data))) {
+  cat("Cell names order match in 'mean.exp' and 'object@meta.data':\n", 
+      "adding gene set mean expression values in 'object@meta.data$gene.set.score'")
+  Cart_UT@meta.data$Inflamm_response <- mean.exp
+}
+mean.exp <- zscore(colMeans(x = Cart_UT@assays$MAGIC_RNA@data[acute_inflam, ], na.rm = TRUE), dist = 'norm')
+if (all(names(x = mean.exp) == rownames(x = Cart_UT@meta.data))) {
+  cat("Cell names order match in 'mean.exp' and 'object@meta.data':\n", 
+      "adding gene set mean expression values in 'object@meta.data$gene.set.score'")
+  Cart_UT@meta.data$acute_inflam <- mean.exp
+}
+cart_old
+#sen score violin plots
+Sen_score_list$SASP
+library(readxl)
+Sen_score_list <- read_excel("analysis/Senescence_and_SASP_genesets_2022_mouse_Corina.xlsx")
+score_list <- colnames(Sen_score_list) 
+for (i in score_list){
+  
+  sen_score <- Sen_score_list[[i]]
+  All_Genes <- cart_old@assays$RNA@data@Dimnames[[1]]
+  sen_score <- intersect(All_Genes, sen_score)
+  
+  mean.exp <- zscore(colMeans(x = cart_old@assays$MAGIC_RNA@data[sen_score, ], na.rm = TRUE), dist = 'norm')
+  if (all(names(x = mean.exp) == rownames(x = cart_old@meta.data))) {
+    cat("Cell names order match in 'mean.exp' and 'object@meta.data':\n", 
+        "adding gene set mean expression values in 'object@meta.data$gene.set.score'")
+    cart_old@meta.data$sen_score <- mean.exp
+  }
+  
+  selected_cells <- names(cart_old$Cell_Type)
+  # selected_cells <- rownames(cart_old@meta.data[cart_old$Treatment == c('Control','Arasco'),] )
+  
+  vln_data <- FetchData(cart_old,
+                        vars = c(sen_score,"Treatment", "Cell_Type"),
+                        cells = selected_cells,
+                        slot = "data")
+  vln_data <- melt(vln_data)
+  vln_data <- vln_data[c('Treatment', 'Cell_Type', 'value')]
+  
+  All <- VlnPlot(cart_old,group.by = 'Cell_Type' , split.by = "Treatment", features = 'sen_score', pt.size = 0, assay = "MAGIC_RNA", cols = c('#7CA1CC' ,'#FF4902'), log = FALSE, split.plot = TRUE) + 
+    theme(legend.position = 'none')  +
+    theme(axis.line = element_line(size = .3),axis.title.x = element_blank(), axis.ticks = element_line(size = .3), text = element_text(size=7), axis.text.x = element_text(size = 6), axis.text.y = element_text(size = 6)) #+ scale_y_continuous(expand = expansion(mult = c(0, .1)))
+  dodge <- position_dodge(width = .9)
+  All <- All + geom_boxplot(width=0.3,outlier.shape = NA, coef = 0, lwd=.2, position = dodge) +
+    stat_compare_means(data= vln_data, aes(x = Cell_Type, y = value, fill = Treatment), hide.ns = TRUE, method = "t.test",  label = "p.signif", size = 1)  
+  All$layers[[1]]$aes_params$size = .15
+  ggsave(file = paste0('CART_INTEST_OLD_scrna_vln_', i, '.pdf'), plot=All, width=3, height=2.5, units="in")
+}
+DimPlot(cart_old, group.by = 'Treatment')
 
 
+Idents(cart_old) <- cart_old$Cell_Type
+cart_old[["celltype"]] <- Idents(cart_old)
+new.cluster.ids <- c("Stem",  "Epithelial", "Epithelial", "Epithelial", "Epithelial", "Epithelial", "Epithelial", "Epithelial", "Epithelial", 'Immune', 'Immune', 'Immune')
+names(new.cluster.ids) <- levels(cart_old)
+cart_old <- RenameIdents(cart_old, new.cluster.ids)
+cart_old[["celltype"]] <- Idents(cart_old)
+DimPlot(cart_old, group.by = 'celltype')
+
+Idents(Cart_UT) <- Cart_UT$Cell_Type
+Cart_UT[["celltype"]] <- Idents(Cart_UT)
+new.cluster.ids <- c("Stem",  "Epithelial", "Epithelial", "Epithelial", "Epithelial", "Epithelial", "Epithelial", "Epithelial", "Epithelial", 'Immune', 'Immune', 'Immune')
+names(new.cluster.ids) <- levels(Cart_UT)
+Cart_UT <- RenameIdents(Cart_UT, new.cluster.ids)
+Cart_UT[["celltype"]] <- Idents(Cart_UT)
+DimPlot(Cart_UT, group.by = 'celltype')
+
+All_Genes <- cart_old@assays$RNA@data@Dimnames[[1]]
+sen_score <- intersect(All_Genes, sen_score)
+
+
+i = 'sen_mayo'
+selected_cells <- names(cart_old$Cell_Type)
+# selected_cells <- rownames(cart_old@meta.data[cart_old$Treatment == c('Control','Arasco'),] )
+
+vln_data <- FetchData(cart_old,
+                      vars = c(i,"Treatment", "celltype"),
+                      cells = selected_cells,
+                      slot = "data")
+vln_data <- melt(vln_data)
+vln_data <- vln_data[c('Treatment', 'celltype', 'value')]
+
+All <- VlnPlot(cart_old,group.by = 'celltype' , split.by = "Treatment", features = i, pt.size = 0, assay = "MAGIC_RNA", cols = c('#7CA1CC' ,'#FF4902'), log = FALSE, split.plot = TRUE) + 
+  theme(legend.position = 'none')  +
+  theme(axis.line = element_line(size = .3),axis.title.x = element_blank(), axis.ticks = element_line(size = .3), text = element_text(size=7), axis.text.x = element_text(size = 6), axis.text.y = element_text(size = 6)) #+ scale_y_continuous(expand = expansion(mult = c(0, .1)))
+dodge <- position_dodge(width = .9)
+All <- All + geom_boxplot(width=0.3,outlier.shape = NA, coef = 0, lwd=.2, position = dodge) +
+  stat_compare_means(data= vln_data, aes(x = celltype, y = value, fill = Treatment), hide.ns = TRUE, method = "t.test",  label = "p.signif", size = 1)  
+All$layers[[1]]$aes_params$size = .15
+ggsave(file = paste0('CART_INTEST_OLD_scrna_vln_bycelltype_', i, '.pdf'), plot=All, width=3, height=2.5, units="in")
+
+score_lsit <- c('Inflammatory_score_new','Inflamm_response','acute_inflam' )
+for(i in score_lsit) {
+  selected_cells <- names(Cart_UT$Cell_Type)
+  # selected_cells <- rownames(Cart_UT@meta.data[Cart_UT$Treatment == c('Control','Arasco'),] )
+  
+  vln_data <- FetchData(Cart_UT,
+                        vars = c(i,"Age", "celltype"),
+                        cells = selected_cells,
+                        slot = "data")
+  vln_data <- melt(vln_data)
+  vln_data <- vln_data[c('Age', 'celltype', 'value')]
+  
+  All <- VlnPlot(Cart_UT,group.by = 'celltype' , split.by = "Age", features = i, pt.size = 0, assay = "MAGIC_RNA", cols = c('#7CA1CC' ,'#FF4902'), log = FALSE, split.plot = TRUE) + 
+    theme(legend.position = 'none')  +
+    theme(axis.line = element_line(size = .3),axis.title.x = element_blank(), axis.ticks = element_line(size = .3), text = element_text(size=7), axis.text.x = element_text(size = 6), axis.text.y = element_text(size = 6)) #+ scale_y_continuous(expand = expansion(mult = c(0, .1)))
+  dodge <- position_dodge(width = .9)
+  All <- All + geom_boxplot(width=0.3,outlier.shape = NA, coef = 0, lwd=.2, position = dodge) +
+    stat_compare_means(data= vln_data, aes(x = celltype, y = value, fill = Age), hide.ns = TRUE, method = "t.test",  label = "p.signif", size = 1)  
+  All$layers[[1]]$aes_params$size = .15
+  ggsave(file = paste0('CART_oldyoung_scrna_vln_bycelltype_', i, '.pdf'), plot=All, width=3, height=2.5, units="in")
+}
+
+score_lsit <- c('Inflammatory_score_new','Inflamm_response','acute_inflam' )
+for(i in score_lsit) {
+  selected_cells <- names(Cart_UT$sen_mayo)
+  # selected_cells <- rownames(Cart_UT@meta.data[Cart_UT$Treatment == c('Control','Arasco'),] )
+  
+  vln_data <- FetchData(Cart_UT,
+                        vars = c(i,"Age", "Cell_Type"),
+                        cells = selected_cells,
+                        slot = "data")
+  vln_data <- melt(vln_data)
+  vln_data <- vln_data[c('Age', 'Cell_Type', 'value')]
+  
+  All <- VlnPlot(Cart_UT,group.by = 'Cell_Type' , split.by = "Age", features = i, pt.size = 0, assay = "MAGIC_RNA", cols = c('#7CA1CC' ,'#FF4902'), log = FALSE, split.plot = TRUE) + 
+    theme(legend.position = 'none')  +
+    theme(axis.line = element_line(size = .3),axis.title.x = element_blank(), axis.ticks = element_line(size = .3), text = element_text(size=7), axis.text.x = element_text(size = 6), axis.text.y = element_text(size = 6)) #+ scale_y_continuous(expand = expansion(mult = c(0, .1)))
+  dodge <- position_dodge(width = .9)
+  All <- All + geom_boxplot(width=0.3,outlier.shape = NA, coef = 0, lwd=.2, position = dodge) +
+    stat_compare_means(data= vln_data, aes(x = Cell_Type, y = value, fill = Age), hide.ns = TRUE, method = "t.test",  label = "p.signif", size = 1)  
+  All$layers[[1]]$aes_params$size = .15
+  ggsave(file = paste0('CART_oldyoung_scrna_vln_', i, '.pdf'), plot=All, width=3, height=2.5, units="in")
+}
 
 #housekeeping
 # saveRDS(cart_obj, file = "./data/Seurat_Objects/CART_Sobj.rds")
@@ -1002,5 +1191,8 @@ cart_obj$Treatment <- factor(x = cart_obj$Treatment, levels = my_levels)
 options (future.globals.maxSize = 4000 * 1024^8)
 
 
+library(SeuratDisk)
+SaveH5Seurat(cart_obj, filename = "./data/Treated_CAR_T.h5Seurat")
+Convert("./data/Treated_CAR_T.h5Seurat", dest = "h5ad", overwrite = TRUE)
 
 

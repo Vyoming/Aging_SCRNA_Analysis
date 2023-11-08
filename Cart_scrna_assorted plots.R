@@ -703,4 +703,173 @@ print(p1)
 
 ggsave(file = 'young_UPARvsUT_Volcano.pdf',  width=5, height=4, units="in")
 
+table(cart_control$Sex, cart_control$Age)
+cart_control
+table(cart_obj$orig.ident)
+
+#control analysis for figure 1: mice addition round 2
+
+Idents(cart_obj) <- cart_obj$Treatment
+Cart_UT <- subset(cart_obj, idents = 'UT')
+
+levels(factor(Cart_UT@meta.data$Cell_Type))
+levels(factor(Cart_UT@meta.data$orig.ident))
+Idents(Cart_UT) <- Cart_UT$Cell_Type
+Cart_UT[["celltype"]] <- Idents(Cart_UT)
+
+new.cluster.ids <- c("Stem", "Stem", "Epithelial", "Epithelial", "Epithelial", "Epithelial", "Epithelial", "Epithelial", "Epithelial", "Immune", "Immune", "Immune")
+names(new.cluster.ids) <- levels(Cart_UT)
+Cart_UT <- RenameIdents(Cart_UT, new.cluster.ids)
+Cart_UT[["celltype"]] <- Idents(Cart_UT)
+All_Genes <- Cart_UT@assays$RNA@data@Dimnames[[1]]
+
+senescence <- c('Psap','Timp2','Itm2b','Lgmn','Igf1','Arl6ip1','Ckb','Lsmem1','Igfbp4','Gsn','Zbtb20','Ccl2','Ccl7','Trio','Tulp4','Cxcl1') %>% convert_mouse_to_human_symbols()
+sen_mayo <- c(
+  "Acvr1b", "Ang", "Angpt1", "Angptl4", "Areg", "Axl", "Bex3", "Bmp2", "Bmp6",
+  "C3", "Ccl1", "Ccl2", "Ccl20", "Ccl24", "Ccl26", "Ccl3", "Ccl4", "Ccl5", "Ccl7",
+  "Ccl8", "Cd55", "Cd9", "Csf1", "Csf2", "Csf2rb", "Cst10", "Ctnnb1", "Ctsb",
+  "Cxcl1", "Cxcl10", "Cxcl12", "Cxcl16", "Cxcl2", "Cxcl3", "Cxcr2", "Dkk1", "Edn1",
+  "Egf", "Egfr", "Ereg", "Esm1", "Ets2", "Fas", "Fgf1", "Fgf2", "Fgf7", "Gdf15",
+  "Gem", "Gmfg", "Hgf", "Hmgb1", "Icam1", "Icam5", "Igf1", "Igfbp1", "Igfbp2",
+  "Igfbp3", "Igfbp4", "Igfbp5", "Igfbp6", "Igfbp7", "Il10", "Il13", "Il15", "Il18",
+  "Il1a", "Il1b", "Il2", "Il6", "Il6st", "Il7", "Inha", "Iqgap2", "Itga2", "Itpka",
+  "Jun", "Kitl", "Lcp1", "Mif", "Mmp13", "Mmp10", "Mmp12", "Mmp13", "Mmp14", "Mmp2",
+  "Mmp3", "Mmp9", "Nap1l4", "Nrg1", "Pappa", "Pecam1", "Pgf", "Pigf", "Plat", "Plau",
+  "Plaur", "Ptbp1", "Ptger2", "Ptges", "Rps6ka5", "Scamp4", "Selplg", "Sema3f",
+  "Serpinb3a", "Serpine1", "Serpine2", "Spp1", "Spx", "Timp2", "Tnf", "Tnfrsf11b",
+  "Tnfrsf1a", "Tnfrsf1b", "Tubgcp2", "Vegfa", "Vegfc", "Vgf", "Wnt16", "Wnt2"
+)
+
+
+All_Genes <- Cart_UT@assays$RNA@data@Dimnames[[1]]
+senescence <- intersect(All_Genes, senescence)
+sen_mayo <- intersect(All_Genes, sen_mayo)
+
+mean.exp <- zscore(colMeans(x = Cart_UT@assays$RNA@data[sen_mayo, ], na.rm = TRUE), dist ='norm')
+if (all(names(x = mean.exp) == rownames(x = Cart_UT@meta.data))) {
+  cat("Cell names order match in 'mean.exp' and 'object@meta.data':\n", 
+      "adding gene set mean expression values in 'object@meta.data$gene.set.score'")
+  Cart_UT@meta.data$senescence <- mean.exp
+}
+
+Idents(Cart_UT) <- Cart_UT$Cell_Type
+min(Cart_UT$senescence)
+FeaturePlot(object = Cart_UT, features = 'senescence', pt.size = .001, label = TRUE, label.size = 4, repel = TRUE) +
+  theme(plot.title = element_blank(), text = element_text(size=6), axis.text.x = element_text(size = 6), axis.text.y = element_text(size = 6), axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_color_gradientn(colors=brewer.pal(n = 9, name = "YlGnBu"))
+ggsave(file = 'Mouse_sen_umap_blue.pdf', width=5, height=5, units="in")
+
+Cart_UT$Age
+my_levels <- c('Young', 'Old')
+Cart_UT$Age <- factor(x = Cart_UT$Age, levels = my_levels)
+i= 'sen_mayo'
+i= 'Inflammatory_Response'
+i= 'senescence'
+selected_cells <- names(Cart_UT$celltype)
+vln_data <- FetchData(Cart_UT,
+                      vars = c(i,"Age", "celltype"),
+                      cells = selected_cells,
+                      slot = "data")
+vln_data <- melt(vln_data)
+vln_data <- vln_data[c('Age', 'celltype', 'value')]
+
+All <- VlnPlot(Cart_UT,group.by = 'celltype' , split.by = "Age", features = i, pt.size = 0, assay = "RNA", cols = c('#7CA1CC' ,'#FF4902'), log = FALSE, split.plot = TRUE) + 
+  theme(axis.line = element_line(size = .3),axis.title.x = element_blank(), axis.ticks = element_line(size = .3), text = element_text(size=7), axis.text.x = element_text(size = 6), axis.text.y = element_text(size = 6))  +
+  stat_compare_means(data= vln_data, aes(x = celltype, y = value, fill = Age), hide.ns = TRUE, method = "wilcox.test",  label = "p.signif", size = 1)  #+ scale_y_continuous(expand = expansion(mult = c(0, .1)))
+dodge <- position_dodge(width = .9)
+All <- All + geom_boxplot(width=0.3,outlier.shape = NA, coef = 0, lwd=.2, position = dodge) +
+  stat_compare_means(data= vln_data, aes(x = celltype, y = value, fill = Age), hide.ns = TRUE, method = "wilcox.test",  label = "p.signif", size = 1)  
+All$layers[[1]]$aes_params$size = .15
+All
+ggsave(file = paste0('Mouse',i,'_violin.pdf'), plot=All, width=3.5, height=2.5, units="in")
+
+source("~/analysis/split_violin.R")
+
+gene.list <- c('LGR4','LGR5', 'OLFM4',  'LIG1', 'TERT', 'CCND1' )
+gene.list <- c('Lgr4', 'Lgr5','Myc', 'Sox9', 'Olfm4', 'Hopx', 'Ccnd1' )
+DefaultAssay(Cart_UT) <- "MAGIC_RNA"
+selected_cells <- names(Cart_UT$celltype[Cart_UT$celltype == c("Stem")])
+vln_data <- FetchData(Cart_UT,
+                      vars = c(gene.list,"Age"),
+                      cells = selected_cells,
+                      slot = "data")
+
+vln_data <- melt(vln_data)
+All <- ggplot(vln_data, aes(x = variable, y = value, fill= Age)) + geom_split_violin(scale="width", trim = TRUE, size = .1) + theme_vyom + theme(legend.position = 'none') + 
+  geom_boxplot(width=0.2,outlier.shape = NA, coef = 0, lwd=.2) + xlab('') + ylab('Expression Level')+ scale_fill_manual(values= c('#7CA1CC' ,'#FF4902')) +
+  theme(text = element_text(size=7), axis.text.x = element_text(size = 6, angle = 45, hjust = 1, vjust = 1), axis.text.y = element_text(size = 6), axis.title.y = element_text(size = 7)) +
+  stat_compare_means( method = "wilcox.test",  label = "p.signif", size = 2) + scale_y_continuous( expand = expansion(mult = c(0, 0.1)))
+All
+ggsave(file = 'mouse_control_Stem_violin_select.pdf', plot=All, width=2.75, height=2, units="in")
+
+#identify senescent cells
+Cart_UT$sen_cells <- 'non'
+Cart_UT <- AddModuleScore(object = Cart_UT, features = list(sen_mayo), name = 'sen_mayo')
+
+# module score distribution
+Senescence_module <- as.data.frame(Cart_UT$sen_mayo1)
+modulescores <- Senescence_module %>%
+  rownames_to_column(var="id") %>%
+  pivot_longer(-id, names_to="celltype", values_to="score")
+
+
+p <- ggplot(modulescores)
+#p <- ggplot(onescore)
+inflection_plot <- p + geom_point(aes(x=fct_inorder(id), y=sort(score)))+ scale_y_continuous(breaks = seq(-.1, .3, by = .002)) +
+  facet_wrap(~celltype) +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+inflection_plot
+
+sen_cells <-WhichCells(object = Cart_UT, expression = sen_mayo1 > .01)
+DimPlot(Cart_UT, label=T,group.by = 'Treatment', cells.highlight= list(sen_cells),  cols.highlight = c("darkblue"),cols= "grey")
+
+Cart_UT$sen_cells[sen_cells] <- paste('senescent')
+
+Prop_table<- prop.table(x = table(Cart_UT$Age, Cart_UT$sen_cells), margin = 2)
+Prop_Table <- as.data.frame(Prop_table, row.names = NULL, optional = FALSE,
+                            make.names = TRUE, stringsAsFactors = default.stringsAsFactors())
+Prop_Table <- Prop_Table[Prop_Table$Var2 == 'senescent',]
+melt(Prop_Table)
+ggplot(Prop_Table, aes(fill=Var1, y=Freq, x=Var2)) + 
+  geom_bar(position="fill", stat="identity")+theme_vyom +scale_fill_manual(values = c( "#FF4902", "#7CA1CC"))
+ggsave( "Mouse_senescent_cell_proportion.pdf", width=2.5, height=3, units="in")
+
+#subset to just senescent cells
+Idents(Cart_UT) <- Cart_UT$sen_cells
+senenscent_scrna <- subset(Cart_UT,  idents = c('senescent'))
+
+Prop_table<- prop.table(x = table(senenscent_scrna$Age, senenscent_scrna$Cell_Type ), margin = 2)
+Prop_Table <- as.data.frame(Prop_table, row.names = NULL, optional = FALSE,
+                            make.names = TRUE, stringsAsFactors = default.stringsAsFactors())
+Prop_Table1 <- Prop_Table
+my_levels <- c('Stem', 'Transit Amplifying', 'Enterocyte Progenitor','Enterocyte (Proximal)','Enterocyte (Distal)', 'Enteroendocrine', 'Goblet', 'Paneth','Tuft', 'T Cell', 'B Cell', 'Myeloid')
+my_levels1 <- c('Young','Old')
+
+Prop_Table1$Var1 <- factor(Prop_Table1$Var1,levels = my_levels1)
+Prop_Table1$Var2 <- factor(Prop_Table1$Var2,levels = my_levels)
+plot <- ggplot(data = Prop_Table1, aes(Var2, Freq, fill=Var1)) + geom_bar(position="stack", stat="identity", na.rm = TRUE) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1), panel.background = element_rect(fill = "white", colour = "Black")) +
+  xlab("Cell Type") + ylab("Fraction of Cells") + labs(fill = "Treatment") + scale_fill_manual(values = c('#7CA1CC' ,'#FF4902'))
+plot
+ggsave(file = paste0('Mouse_senescent_cell_proportion_percelltype.pdf'), width=4, height=3, units="in")
+
+#proportions per cell type
+Prop_table<- prop.table(x = table(Cart_UT$Cell_Type, Cart_UT$orig.ident), margin = 2)
+Prop_Table <- as.data.frame(Prop_table, row.names = NULL, optional = FALSE,
+                            make.names = TRUE, stringsAsFactors = default.stringsAsFactors())
+levels(as.factor(Cart_UT$orig.ident))
+Prop_Table1 <- Prop_Table%>%mutate(Var2=recode(Var2,UT_F_old="Old",UT_F_young="Young", UT_M_old="Old", UT_M_young="Young"))
+
+celltype_sample_norm3 = summarySE(Prop_Table1, measurevar="Freq", groupvars=c("Var1","Var2"))
+
+my_levels <- c('Stem', 'Transit Amplifying', 'Enterocyte Progenitor','Enterocyte (Proximal)','Enterocyte (Distal)', 'Enteroendocrine', 'Goblet', 'Paneth','Tuft', 'T Cell', 'B Cell', 'Myeloid')
+celltype_sample_norm3$Var1 = factor(celltype_sample_norm3$Var1, levels = my_levels)
+celltype_sample_norm3$Var2 = factor(celltype_sample_norm3$Var2, levels = c('Young','Old'))
+
+ggplot(celltype_sample_norm3, aes(x = Var1, y = Freq, fill = Var2)) + geom_bar(stat="identity", position="dodge") + 
+  geom_errorbar(aes(ymin=Freq-se, ymax=Freq+se),position=position_dodge(width = 0.85),width=0.3, size=0.25) + theme_vyom + 
+  scale_fill_manual(values = colorsType) + expand_limits(y = c(0)) + 
+  theme( axis.text.x = element_text(angle = 45, size =  6, vjust = 1, hjust = 1), panel.background = element_rect(fill = "white", colour = "Black"), axis.text.y = element_text(size = 6), axis.title.x = element_text(size = 7), axis.title.y = element_text(size = 7)) + 
+  xlab("Cell Type") + ylab("Fraction of Cells") + labs(fill = "Age") + scale_y_continuous(expand = expansion(mult = c(0, .1)))
+ggsave( "Mouse_oldyoung_prop_errbar.pdf", width=3.75, height=2, units="in")
 

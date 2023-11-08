@@ -172,9 +172,26 @@ cart_control <- magic(cart_control)
 senescence <- c('Psap','Timp2','Itm2b','Lgmn','Igf1','Arl6ip1','Ckb','Lsmem1','Igfbp4','Gsn','Zbtb20','Ccl2','Ccl7','Trio','Tulp4','Cxcl1')
 #old
 senescence <- c('Acvr1b','Ang','Angpt1','Angptl4','Areg','Axl','Bex3','Bmp2','Bmp6','C3','Ccl1','Ccl2','Ccl20','Ccl24','Ccl26','Ccl3','Ccl4','Ccl5','Ccl7','Ccl8','Cd55','Cd9','Csf1','Csf2','Csf2rb','Cst10','Ctnnb1','Ctsb','Cxcl1','Cxcl10','Cxcl12','Cxcl16','Cxcl2','Cxcl3','Cxcr2','Dkk1','Edn1','Egf','Egfr','Ereg','Esm1','Ets2','Fas','Fgf1','Fgf2','Fgf7','Gdf15','Gem','Gmfg','Hgf','Hmgb1','Icam1','Icam5','Igf1','Igfbp1','Igfbp2','Igfbp3','Igfbp4','Igfbp5','Igfbp6','Igfbp7','Il10','Il13','Il15','Il18','Il1a','Il1b','Il2','Il6','Il6st','Il7','Inha','Iqgap2','Itga2','Itpka','Jun','Kitl','Lcp1','Mif','Mmp13','Mmp10','Mmp12','Mmp13','Mmp14','Mmp2','Mmp3','Mmp9','Nap1l4','Nrg1','Pappa','Pecam1','Pgf','Pigf','Plat','Plau','Plaur','Ptbp1','Ptger2','Ptges','Rps6ka5','Scamp4','Selplg','Sema3f','Serpinb3a','Serpine1','Serpine2','Spp1','Spx','Timp2','Tnf','Tnfrsf11b','Tnfrsf1a','Tnfrsf1b','Tubgcp2','Vegfa','Vegfc','Vgf','Wnt16','Wnt2')
+#senmayo
+sen_mayo <- c(
+  "Acvr1b", "Ang", "Angpt1", "Angptl4", "Areg", "Axl", "Bex3", "Bmp2", "Bmp6",
+  "C3", "Ccl1", "Ccl2", "Ccl20", "Ccl24", "Ccl26", "Ccl3", "Ccl4", "Ccl5", "Ccl7",
+  "Ccl8", "Cd55", "Cd9", "Csf1", "Csf2", "Csf2rb", "Cst10", "Ctnnb1", "Ctsb",
+  "Cxcl1", "Cxcl10", "Cxcl12", "Cxcl16", "Cxcl2", "Cxcl3", "Cxcr2", "Dkk1", "Edn1",
+  "Egf", "Egfr", "Ereg", "Esm1", "Ets2", "Fas", "Fgf1", "Fgf2", "Fgf7", "Gdf15",
+  "Gem", "Gmfg", "Hgf", "Hmgb1", "Icam1", "Icam5", "Igf1", "Igfbp1", "Igfbp2",
+  "Igfbp3", "Igfbp4", "Igfbp5", "Igfbp6", "Igfbp7", "Il10", "Il13", "Il15", "Il18",
+  "Il1a", "Il1b", "Il2", "Il6", "Il6st", "Il7", "Inha", "Iqgap2", "Itga2", "Itpka",
+  "Jun", "Kitl", "Lcp1", "Mif", "Mmp13", "Mmp10", "Mmp12", "Mmp13", "Mmp14", "Mmp2",
+  "Mmp3", "Mmp9", "Nap1l4", "Nrg1", "Pappa", "Pecam1", "Pgf", "Pigf", "Plat", "Plau",
+  "Plaur", "Ptbp1", "Ptger2", "Ptges", "Rps6ka5", "Scamp4", "Selplg", "Sema3f",
+  "Serpinb3a", "Serpine1", "Serpine2", "Spp1", "Spx", "Timp2", "Tnf", "Tnfrsf11b",
+  "Tnfrsf1a", "Tnfrsf1b", "Tubgcp2", "Vegfa", "Vegfc", "Vgf", "Wnt16", "Wnt2"
+)
 
 All_Genes <- cart_control@assays$RNA@data@Dimnames[[1]]
 senescence <- intersect(All_Genes, senescence)
+senescence <- intersect(All_Genes, sen_mayo)
 mean.exp <- zscore(colMeans(x = cart_control@assays$MAGIC_RNA@data[senescence, ], na.rm = TRUE), dist ='norm')
 if (all(names(x = mean.exp) == rownames(x = cart_control@meta.data))) {
   cat("Cell names order match in 'mean.exp' and 'object@meta.data':\n", 
@@ -186,7 +203,7 @@ Idents(cart_control) <- cart_control$Cell_Type
 max(cart_control$senescence)
 FeaturePlot(object = cart_control, features = 'senescence', pt.size = .001, label = TRUE, label.size = 4, repel = TRUE) +
   theme(plot.title = element_blank(), text = element_text(size=6), axis.text.x = element_text(size = 6), axis.text.y = element_text(size = 6), axis.title.x = element_blank(), axis.title.y = element_blank()) +
-  scale_color_gradientn(colors=brewer.pal(n = 11, name = "YlGnBu"), breaks = c(.0, .1,.2,.3,.5,.8),limits = c(.08,.8), trans = scales::boxcox_trans(.9))
+  scale_color_gradientn(colors=brewer.pal(n = 11, name = "YlGnBu"), breaks = c(.0, .1,.2,.3),limits = c(.0,.3), trans = scales::boxcox_trans(.9))
 ggsave(file = 'CART_control_Scenscence_BuGn.pdf', width=5, height=5, units="in")
 
 All <- VlnPlot(cart_control, split.by = "Age",group.by = 'Cell_Type', features = 'senescence', pt.size = 0, assay = "RNA",  cols = c('#1b9e77','#d95f02'), log = TRUE, split.plot = TRUE) + 
@@ -248,6 +265,7 @@ if (all(names(x = mean.exp) == rownames(x = cart_control@meta.data))) {
 
 cart_control$
 i = 'Inflammatory_Response'
+i = "MHC_score"
 i = "MHC_score"
 for(i in gene.list) {
   selected_cells <- names(cart_control$Cell_Type)
@@ -393,10 +411,10 @@ cart_control <- RenameIdents(cart_control, new.cluster.ids)
 cart_control[["celltype"]] <- Idents(cart_control)
 
 Idents(cart_control) <- cart_control$celltype
-Cart_epith <- subset(cart_control, idents = c('Stem','Epithelial'))
+#Cart_epith <- subset(cart_control, idents = c('Stem','Epithelial'))
 
-cart_control$Inflammatory_Response
-i = 'Inflammatory_Response'
+cart_control$senescence
+i = 'senescence'
 for(i in gene.list) {
   selected_cells <- names(cart_control$celltype)
   vln_data <- FetchData(cart_control,
@@ -415,7 +433,7 @@ for(i in gene.list) {
   All <- All + geom_boxplot(width=0.3,outlier.shape = NA, coef = 0, lwd=.2, position = dodge) +
     stat_compare_means(data= vln_data, aes(x = celltype, y = value, fill = Age), hide.ns = TRUE, method = "t.test",  label = "p.signif", size = 1)  
   All$layers[[1]]$aes_params$size = .15
-  ggsave(file = paste0('Figure 4 A.pdf'), plot=All, width=2.5, height=2.5, units="in")
+  ggsave(file = paste0('Mouse_',i,'_control_vln.pdf'), plot=All, width=2.5, height=2.5, units="in")
 }
 
 
@@ -488,8 +506,76 @@ All <- ggplot(data = gsea_output1,aes(x=pathway,y=NES)) +  theme_vyom +
 All + geom_vline(xintercept = 0)
 ggsave(file = paste0('Fig 1 H_GSEA.pdf'), plot=All, width=5, height=3, units="in")
 
+cell_type_list <- levels(factor(cart_control$Cell_Type))
+for (i in cell_type_list){
+  o_cells_de<- rownames(cart_control@meta.data[cart_control$Cell_Type == c(i) & cart_control$Age == c('Old'),] )
+  y_cells_de<- rownames(cart_control@meta.data[cart_control$Cell_Type == c(i) & cart_control$Age == c('Young'),] )
+  
+  DE_subset <- FindMarkers(cart_control, ident.1 = o_cells_de, ident.2 = y_cells_de,  test.use = "MAST", logfc.threshold = .1, min.pct = .01, assay = 'SCT')
+  write.csv(DE_subset, paste0(i, '_old_v_young_control.csv'))
+}
+
+#determine senescent cells new
+sen_mayo
+cart_control$sen_cells <- 'non'
+cart_control <- AddModuleScore(object = cart_control, features = list(sen_mayo), name = 'sen_mayo')
+
+# module score distribution
+Senescence_module <- as.data.frame(cart_control$sen_mayo1)
+modulescores <- Senescence_module %>%
+  rownames_to_column(var="id") %>%
+  pivot_longer(-id, names_to="celltype", values_to="score")
+
+
+p <- ggplot(modulescores)
+#p <- ggplot(onescore)
+inflection_plot <- p + geom_point(aes(x=fct_inorder(id), y=sort(score)))+ scale_y_continuous(breaks = seq(-.1, .3, by = .01)) +
+  facet_wrap(~celltype) +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+inflection_plot
+
+sen_cells <-WhichCells(object = cart_control, expression = sen_mayo1 > .05)
+DimPlot(cart_control, label=T,group.by = 'celltype', cells.highlight= list(sen_cells),  cols.highlight = c("darkblue"),cols= "grey")
+
+cart_control$sen_cells[sen_cells] <- paste('senescent')
+
+Prop_table<- prop.table(x = table( cart_control$Age, cart_control$sen_cells), margin = 2)
+Prop_Table <- as.data.frame(Prop_table, row.names = NULL, optional = FALSE,
+                            make.names = TRUE, stringsAsFactors = default.stringsAsFactors())
+Prop_Table <- Prop_Table[Prop_Table$Var2 == 'senescent',]
+melt(Prop_Table)
+ggplot(Prop_Table, aes(fill=Var1, y=Freq, x=Var2)) + 
+  geom_bar(position="fill", stat="identity")+theme_vyom +scale_fill_manual(values = colorsType)
+ggsave( "CART_CONTROL_senescent_plot.pdf", width=2.5, height=3, units="in")
+
+
+levels(as.factor(cart_control$orig.ident))
+Prop_Table1 <- Prop_Table%>%mutate(Var2=recode(Var2,OF1="Old",OF2="Old",OM="Old",YF1="Young", YF2="Young", YM="Young"))
+
+celltype_sample_norm3 = summarySE(Prop_Table1, measurevar="Freq", groupvars=c("Var1","Var2"))
+
+my_levels <- c('Stem', 'Transit Amplifying', 'Enterocyte Progenitor','Enterocyte (Proximal)','Enterocyte (Distal)', 'Enteroendocrine', 'Goblet', 'Paneth','Tuft', 'T Cell', 'B Cell', 'Myeloid')
+celltype_sample_norm3$Var1 = factor(celltype_sample_norm3$Var1, levels = my_levels)
+celltype_sample_norm3$Var2 = factor(celltype_sample_norm3$Var2, levels = c('Young','Old'))
+
+ggplot(celltype_sample_norm3, aes(x = Var1, y = Freq, fill = Var2)) + geom_bar(stat="identity", position="dodge") + 
+  geom_errorbar(aes(ymin=Freq-se, ymax=Freq+se),position=position_dodge(width = 0.85),width=0.3, size=0.25) + theme_vyom + 
+  scale_fill_manual(values = colorsType) + expand_limits(y = c(0)) + 
+  theme( axis.text.x = element_text(angle = 45, size =  6, vjust = 1, hjust = 1), panel.background = element_rect(fill = "white", colour = "Black"), axis.text.y = element_text(size = 6), axis.title.x = element_text(size = 7), axis.title.y = element_text(size = 7)) + 
+  xlab("Cell Type") + ylab("Fraction of Cells") + labs(fill = "Age") + scale_y_continuous(expand = expansion(mult = c(0, .1)))
+ggsave( "CART_CONTROL_frac_of_cells.pdf", width=3.75, height=3, units="in")
+cart_control$Sen_cells
+
+
+
 #housekeeping
 #cart_control <- readRDS("./data/Seurat_Objects/CART_Control_Sobj.rds", refhook = NULL)
+colorsType = c(
+  Young = "#7CA1CC",
+  Old = "#FF4902"
+)
 
-
-
+library(SeuratDisk)
+SaveH5Seurat(cart_control, filename = "./data/Control_CAR_T.h5Seurat")
+Convert("./data/Control_CAR_T.h5Seurat", dest = "h5ad", overwrite = TRUE)
+write.csv(cart_control@meta.data, 'Control_CAR_T_metadata.csv')

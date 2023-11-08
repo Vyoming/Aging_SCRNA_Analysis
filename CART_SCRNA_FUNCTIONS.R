@@ -16,15 +16,18 @@ library(scales)
 library(future)
 library(magrittr)
 library(mgcv)
-Cart_UT$Age
+library(fgsea)
+
+source("~/analysis/scRNA_Intestine/Single_Cell_Functions/cem_helper.R")
+source("~/analysis/scRNA_Intestine/Single_Cell_Functions/cem_polyOutline.R")
+source("~/analysis/scRNA_Intestine/Single_Cell_Functions/cem_scRNAseq_vyom.R")
 #load in themes/necessary functions/data
-Seurat_Object <- Cart_UT
+Seurat_Object <- cart_obj_UT
 options(stringsAsFactors=FALSE)
 colorsType = c(
-  UT = "#7CA1CC",
-  uPAR = "#FF4902"
+  'Young' = "#7CA1CC",
+  'Old' = "#FF4902"
 )
-
 theme_linedraw2 = theme_linedraw() + theme(strip.background=element_rect(fill="grey80", colour="grey50", size=0.2), strip.text.x=element_text(colour="black"), strip.text.y=element_text(colour="black"))
 theme_vyom = theme_linedraw2 + theme(legend.position="right", legend.title=element_text(size=15), legend.text=element_text(size=14), axis.text.x = element_text(size=12, angle=-90, hjust=0, vjust=0.5), axis.text.y=element_text(size=12), axis.title=element_text(size=15), axis.title.y=element_text(vjust=1), plot.title = element_text(size=18, vjust=1.5), strip.background = element_rect(fill="#EEEEEE"), strip.text = element_text(size = 11), panel.grid.major = element_line(colour = "grey98"), panel.grid.minor = element_blank())
 
@@ -220,6 +223,99 @@ smoothScorePredict = function(trainDat, newGrid, knn=30){
   scorePredicted %<>% mutate(score = fitted(scoreKknn))
   return(scorePredicted)
 }
+calculatePathwayScores = function(seuratObj, dimred, pathwayList, method="seurat", minCells=10,  minGenes=2)
+{
+  curData = seuratObj@assays$SCT@scale.data
+  curData = curData[ rowSums(curData > 0) >= minCells, ]
+  curData = curData[ rowSds(curData) > 0, ]
+  zscore = t(curData) # scale(t(curData))
+  pathwayNames = unique( gsub("(_UP|_DN|_downreg|_upreg|_down_|_up_)", "\\*", names(pathwayList)) )
+  
+  pathwayScores = dimred
+  for(curPathway in pathwayNames)
+  {
+    curPathwayName = gsub("\\*", "", curPathway)
+    curUpSum = rep(0, nrow(zscore))
+    curDnSum = rep(0, nrow(zscore))
+    anyHits = F
+    curUpGenesList = c()
+    curDnGenesList = c()
+    
+    if(grepl("\\*", curPathway) & gsub("\\*", "_UP", curPathway) %in% names(pathwayList))
+    {
+      curUpGenesList = c(curUpGenesList, pathwayList[[ gsub("\\*", "_UP", curPathway) ]] )
+    }
+    if(grepl("\\*", curPathway) & gsub("\\*", "_upreg", curPathway) %in% names(pathwayList))
+    {
+      curUpGenesList = c(curUpGenesList, pathwayList[[ gsub("\\*", "_upreg", curPathway) ]] )
+    }
+    if(grepl("\\*", curPathway) & gsub("\\*", "_up_", curPathway) %in% names(pathwayList))
+    {
+      curUpGenesList = c(curUpGenesList, pathwayList[[ gsub("\\*", "_up_", curPathway) ]] )
+    }
+    
+    if(grepl("\\*", curPathway) & gsub("\\*", "_DN", curPathway) %in% names(pathwayList))
+    {
+      curDnGenesList = c(curDnGenesList, pathwayList[[ gsub("\\*", "_DN", curPathway) ]] )
+    }
+    if(grepl("\\*", curPathway) & gsub("\\*", "_downreg", curPathway) %in% names(pathwayList))
+    {
+      curDnGenesList = c(curDnGenesList, pathwayList[[ gsub("\\*", "_downreg", curPathway) ]] )
+    }
+    if(grepl("\\*", curPathway) & gsub("\\*", "_down_", curPathway) %in% names(pathwayList))
+    {
+      curDnGenesList = c(curDnGenesList, pathwayList[[ gsub("\\*", "_down_", curPathway) ]] )
+    }
+    if( length(curUpGenesList) == 0 & length(curDnGenesList) == 0 & curPathway %in% names(pathwayList))
+    {
+      curUpGenesList = c(curUpGenesList, pathwayList[[ curPathway ]] )
+    }
+    curUpGenesList = intersect(curUpGenesList, colnames(zscore) )
+    curDnGenesList = intersect(curDnGenesList, colnames(zscore) )
+    
+    if( length(curUpGenesList) + length(curDnGenesList) <= minGenes ) # min 10 genes
+    {
+      next
+    }
+    
+    if(method == "seurat")
+    {
+      curUpGenesList = list( curUpGenesList )
+      curDnGenesList = list( curDnGenesList )
+      seuratObjUp = NULL
+      seuratObjDn = NULL
+      tryCatch({seuratObjUp = AddModuleScore(object = seuratObj, features = curUpGenesList, ctrl = 5, name = 'Score'); curUpSum = seuratObjUp$Score1; }, error = function(e) { print(e) })
+      tryCatch({seuratObjDn = AddModuleScore(object = seuratObj, features = curDnGenesList, ctrl = 5, name = 'Score'); curDnSum = seuratObjDn$Score1; }, error = function(e) { print(e) })
+      curScore = curUpSum - curDnSum 
+      if(is.null(names(curScore))) next
+      
+    }else
+    {
+      if( length(curUpGenesList) > 0)
+      {
+        curUp = zscore[, colnames(zscore) %in% curUpGenesList, drop=F]
+        curUpSum = rowSums(curUp)
+      }
+      if( length(curDnGenesList) > 0)
+      {
+        curDn = zscore[, colnames(zscore) %in% curDnGenesList, drop=F]
+        curDnSum = rowSums(curDn)
+      }
+      
+      curScore = curUpSum - curDnSum
+      names(curScore) = rownames(zscore)
+    }
+    
+    curScore = data.frame(Cell=names(curScore), Score=scale(curScore))
+    colnames(curScore)[2] = curPathwayName
+    pathwayScores = merge(pathwayScores, curScore, by="Cell")	
+  }
+  
+  pathwayScores2 = melt(pathwayScores, colnames(dimred), variable.name="Pathway", value.name="Score")
+  pathwayScores2$Pathway = as.character(pathwayScores2$Pathway)
+  return(pathwayScores2)
+}
+
 
 dimred = data.frame(Seurat_Object@reductions$umap@cell.embeddings)
 dimred$Cell = rownames(dimred)
@@ -231,11 +327,22 @@ dimred$Treatment = Seurat_Object$Age
 dimred$CellType = dimred$Cluster
 assay = Matrix::t(Seurat_Object@assays$RNA@data)
 dimred$Type = dimred$Treatment
-curFilename = "CART_all"
-curTitle = "CART_all"
-Seurat_Object$senescence
-geneList = unique(c('senescence'))
-geneList = unique(c( 'Cxcr3','Ctsb','Ccl2','Jun','Irf7','ppar_mouse'))
+
+{
+  dimred$Cluster = Seurat_Object$annotation # Overwrite clusters with cell types for current plots
+  dimred$Treatment = Seurat_Object$Age
+  dimred$CellType = dimred$Cluster
+  assay = Matrix::t(Seurat_Object@assays$RNA@data)
+  dimred$Type = dimred$Treatment
+  dimred$UMAP_1 <- dimred$umap_1
+  dimred$UMAP_2 <- dimred$umap_2
+}
+curFilename = "CART_OvY_Mouse_"
+curTitle = "Old vs Young"
+
+#indicate score or gene here
+geneList = unique(c('sen_mayo'))
+geneList = unique(c('Ascl2'))
 
 clusterMedian = dimred %>%
   group_by(CellType) %>%
@@ -243,18 +350,57 @@ clusterMedian = dimred %>%
 
 hulls2 = concaveHull(dimred, "UMAP_1", "UMAP_2", "CellType", alpha = 0.5, extend = T, minPoint = 20)
 
+#use if calculating seperate genes
 geneList = intersect(geneList, colnames(assay))
 dimredG = merge(dimred, as.matrix(assay[, geneList, drop=F]), by.x="Cell", by.y="row.names")
 
-#if you are using score instead
+#use if calculating score
 dimredG <- dimred
-dimredG$senescence <- Seurat_Object$senescence
+dimredG$Inflammatory_score_new <- Seurat_Object$Inflammatory_score_new
+dimredG$acute_Inflammatory <- Seurat_Object$acute_Inflammatory
+dimredG$Inflammatory_Response <- Seurat_Object$Inflammatory_Response
+#calculating score: better method
 
+getPathways = function(genesOrth = NULL)
+{
+  pathwaysM = c(gmtPathways("~/analysis/scRNA_Intestine/Beyaz_AA_final_organoid.gmt"))
+  return(pathwaysM)
+}
+pathways = getPathways()
+stem_score <- c('Lgr4','Myc', 'Sox9', 'Olfm4', 'Hopx', 'Ccnd1' ) #%>% convert_mouse_to_human_symbols()
 
+pathways$senescence <- senescence
+pathways$stem_score <- stem_score
+pathways$MHC_score <- MHC_score
+pathways$Hormone <- Hormone
+pathways$Absorption <- Absorption
+pathways$antimicrobial <- antimicrobial
+pathways$Inflammatory_score_new <- Inflammatory_score_new
+pathways$Inflammatory_Response <- Inflammatory_Response
+pathways$acute_Inflammatory <- acute_Inflammatory
+pathways$sen_mayo <- sen_mayo
+pathways$sen_BRD4 <- sen_BRD4
+pathwayNames = gsub("(_UP|_DN|_downreg|_upreg|_down_|_up_)", "\\*", names(pathways))
+#pathwaysSelected = pathways[ pathwayNames %in% c( "senescence", "stem_score", "MHC_score", "Hormone", "Absorption", "antimicrobial", "Inflammatory", "sen_mayo", "sen_BRD4") ]
+pathwaysSelected = pathways[ pathwayNames %in% c("stem_score") ]
+
+pathwayScoresZscore = calculatePathwayScores(Seurat_Object, dimred, pathwaysSelected, method="seurat")
+
+pathwayScores = pathwayScoresZscore
+
+pathwayScoresW = dcast(pathwayScores, Cell+Cluster+Type+CellType+UMAP_1+UMAP_2~Pathway, value.var="Score")
+#colnames(pathwayScoresW)[9:ncol(pathwayScoresW)] = paste0("Score_", colnames(pathwayScoresW)[9:ncol(pathwayScoresW)])
+
+dimredG = pathwayScoresW
+geneList <- gsub("(_UP|_DN|_downreg|_upreg|_down_|_up_)", "\\*", names(pathwaysSelected))
+
+#colors
 geneColors = rev(viridis::magma(10))#brewer.pal(9, "YlOrRd")[-c(1)] ## brewer.pal(9, "YlOrRd") ## rev(viridis::magma(10))
 geneColorsDiff = rev(brewer.pal(9, "RdBu"))
-for(curGene in geneList)
-{
+
+Control_ident ='Young'
+Experimental_ident = 'Old'
+for(curGene in geneList){
   rangeL = quantile(dimredG[, curGene], 0.01, na.rm = T)
   rangeH = quantile(dimredG[, curGene], 0.95, na.rm = T)
   
@@ -262,11 +408,11 @@ for(curGene in geneList)
   
   sm = smoothScore2d(dimredG[, curGene], dimredG$UMAP_1, dimredG$UMAP_2, numGrid=100, knn=50, m=2)
   
-  sm2 = ddply(dimredG, "Treatment", function(x) { smoothScore2d( x[,  curGene], x$UMAP_1, x$UMAP_2, numGrid=100, knn=50, m=2, xrng=range(dimredG$UMAP_1), yrng=range(dimredG$UMAP_2)) } )	
+  sm2 = ddply(dimredG, "Type", function(x) { smoothScore2d( x[,  curGene], x$UMAP_1, x$UMAP_2, numGrid=100, knn=50, m=2, xrng=range(dimredG$UMAP_1), yrng=range(dimredG$UMAP_2)) } )	
   
-  sm3 = smoothScore2d(dimredG[, curGene], dimredG$UMAP_1, dimredG$UMAP_2, type=dimredG$Treatment, numGrid=100, knn=50, m=2)
+  sm3 = smoothScore2d(dimredG[, curGene], dimredG$UMAP_1, dimredG$UMAP_2, type=dimredG$Type, numGrid=100, knn=50, m=2)
   sm3W = dcast(sm3, x+y~type, value.var="score")
-  sm3W$PMXS_vs_AB = sm3W$Old - sm3W$Young
+  sm3W$PMXS_vs_AB = sm3W[[Experimental_ident]] - sm3W[[Control_ident]]
   rangeDiff = max(c(abs(sm3W$PMXS_vs_AB)))
   
   ggplot(sm3W) + geom_tile(aes(x = x, y = y, fill = PMXS_vs_AB)) + theme_vyom +
@@ -276,13 +422,15 @@ for(curGene in geneList)
     theme(legend.position = "none", text = element_text(size=5),  axis.text.x = element_text(size =  6), axis.text.y = element_text(size = 6), axis.title.x = element_text(size = 7), axis.title.y = element_text(size = 7))
   
   ggsave(file= paste0(curFilename, "_Expression_Desnity_Diff_", curGene, ".pdf"), width=2.5, height=2.5, units="in")
+  
   ggplot(sm3W) + geom_tile(aes(x = x, y = y, fill = PMXS_vs_AB)) + theme_vyom +
     scale_fill_gradientn(name = "Log2fc", colors = geneColorsDiff, limits = c(-rangeDiff, rangeDiff)) +
     geom_polygon(data = hulls2, aes(x = x, y = y, group = CellType), alpha = 0.3, fill=NA, color="#666666", size=0.1) + ylab('UMAP_2') + xlab('UMAP_1') +
     geom_text_repel(data = clusterMedian, aes(x = UMAP_1, y = UMAP_2, label = CellType, group = as.factor(CellType)), size = 1.5, box.padding = .1, force = 5, color = "Black") +
     theme( text = element_text(size=5),  axis.text.x = element_text(size =  6), axis.text.y = element_text(size = 6), axis.title.x = element_text(size = 7), axis.title.y = element_text(size = 7))
   
-  ggsave(file= paste0(curFilename, "_Expression_Desnity_Diff_LEGEND_", curGene, ".pdf"), width=2.5, height=2.5, units="in")
+  ggsave(file= paste0(curFilename, "_LABEL_Expression_Desnity_Diff_LABEL_", curGene, ".pdf"), width=2.5, height=2.5, units="in")
+  
 }
 
 {
@@ -340,10 +488,10 @@ for(curGene in geneList)
       colnames(diff_CaseVsCtrl$z) = diff_CaseVsCtrl$y
       
       diff_CaseVsCtrlM = melt(diff_CaseVsCtrl$z, id.var = rownames(diff_CaseVsCtrl))
-      names(diff_CaseVsCtrlM) = c("UMAP_1", "UMAP_2", caseVsCtrlName)
+      names(diff_CaseVsCtrlM) = c("UMAP_1", "UMAP_2", 'caseVsCtrlName')
       
       ggplot(diff_CaseVsCtrlM, aes(x = UMAP_1, y = UMAP_2)) +
-        ggrastr::rasterise(geom_tile(aes_string(fill = caseVsCtrlName), alpha = 1), dpi = 200) +
+        ggrastr::rasterise(geom_tile(aes_string(fill = 'caseVsCtrlName'), alpha = 1), dpi = 200) +
         scale_fill_gradient2(low = colorLow, mid = colorMid, high = colorHigh, midpoint = 0) +
         coord_cartesian(xlim = xrng, ylim = yrng) +
         scale_color_manual(values = colorsType) +
@@ -354,7 +502,7 @@ for(curGene in geneList)
       ggsave(paste0(curFilename, "_dimred_densityDiff_cellType", caseVsCtrlName, ".pdf"), width = 3, height = 3, units="in")
       
       ggplot(diff_CaseVsCtrlM, aes(x = UMAP_1, y = UMAP_2)) +
-        ggrastr::rasterise(geom_tile(aes_string(fill = caseVsCtrlName), alpha = 1), dpi = 200) +
+        ggrastr::rasterise(geom_tile(aes_string(fill = 'caseVsCtrlName'), alpha = 1), dpi = 200) +
         scale_fill_gradient2(low = colorLow, mid = colorMid, high = colorHigh, midpoint = 0) +
         coord_cartesian(xlim = xrng, ylim = yrng) +
         scale_color_manual(values = colorsType) +
@@ -367,57 +515,5 @@ for(curGene in geneList)
     }
   }
 }
-
-
-library(readxl)
-Young_vs_Old_MHC_II_genes <- read_excel("Documents/Young vs Old MHC-II genes.xlsx")
-View(Young_vs_Old_MHC_II_genes)
-idents1 <- c('symbol','Young_ISC.norm','Old_ISC.norm')
-Young_vs_Old_MHC_II_genes <- Young_vs_Old_MHC_II_genes[idents1]
-
-rownames(Young_vs_Old_MHC_II_genes) <- Young_vs_Old_MHC_II_genes$symbol
-fc <- c()
-for(i in Young_vs_Old_MHC_II_genes$symbol){
-  FC_ITER <- foldchange(Young_vs_Old_MHC_II_genes[i,]$Old_ISC.norm, Young_vs_Old_MHC_II_genes[i,]$Young_ISC.norm)
-  fc <- c(fc,FC_ITER)
-}
-Young_vs_Old_MHC_II_genes$FC <- fc
-Young_vs_Old_MHC_II_genes$Log2_FC <- log(fc, 2)
-idents1 <- c('symbol','Log2_FC')
-FC_data <- Young_vs_Old_MHC_II_genes[idents1]
-library(reshape)
-Heatmap_data <-melt(FC_data)
-pathwayColorsDiff = rev(brewer.pal(9, "RdBu"))
-ggplot(Heatmap_data, aes(symbol, variable, fill= value)) + geom_tile() + 
-  scale_fill_gradientn(name = "Log2FC", colors = pathwayColorsDiff, limits = c(-3,3)) + coord_flip() +
-  theme(axis.text.y =   element_text( vjust = 0.1, hjust = 1), panel.background = element_blank(), axis.ticks.x=element_blank(), axis.ticks.y=element_blank(), axis.title.x=element_blank(), axis.title.y=element_blank())
-ggsave(file="OldvsYoung_MHCII.pdf",  width=1.85, height=2, units="in")
-
-Young_vs_Old_MHC_II_genes_mean
-Young_vs_Old_MHC_II_genes
-length(Young_vs_Old_MHC_II_genes_split$arasco[which(Young_vs_Old_MHC_II_genes_split$arasco$metabolite == i),]$measure)
-
-zscores <- zscoreT(Young_vs_Old_MHC_II_genes$measure, df = length(Young_vs_Old_MHC_II_genes$measure))
-aa_zscore <- Young_vs_Old_MHC_II_genes
-aa_zscore$measure <- zscores
-
-aa_zscore_mean <- aa_zscore %>%
-  group_by(diet, metabolite) %>%
-  summarise_at(vars(measure), list(name = mean))
-aa_zscore_mean$diet
-
-my_levels <- c('control','arasco')
-aa_zscore_mean$diet <- factor(x = aa_zscore_mean$diet, levels = my_levels)
-
-ggplot(Heatmap_data, aes(metabolite, variable, fill= value)) + geom_tile() + 
-  scale_fill_gradientn(name = "Log2FC", colors = pathwayColorsDiff, limits = c(-1,3)) + coord_flip() +
-  theme(axis.text.y =   element_text( vjust = 0.1, hjust = 1), panel.background = element_blank(), axis.ticks.x=element_blank(), axis.ticks.y=element_blank(), axis.title.x=element_blank(), axis.title.y=element_blank())
-ggsave(file="Ptger_Mouse_logfc_scale.pdf",  width=4, height=2, units="in")
-
-ggplot(aa_zscore_mean, aes(metabolite, diet, fill= name)) + geom_tile() + 
-  scale_fill_gradientn(name = "Log Counts", colors = pathwayColorsDiff, limits = c(0,7.5)) + coord_flip() +
-  theme(axis.text.y =   element_text( vjust = 0.1, hjust = 1), panel.background = element_blank(), axis.ticks.x=element_blank(), axis.ticks.y=element_blank(), axis.title.x=element_blank(), axis.title.y=element_blank())
-ggsave(file="Ptger_Mouse_logfc_scale.pdf",  width=4, height=2, units="in")
-
 
 
